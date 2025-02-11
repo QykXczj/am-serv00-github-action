@@ -18,27 +18,26 @@ purple "=== 转载请著名出处 AM科技，请勿滥用 ===\n"
 
 # 发送 Telegram 消息的函数
 send_telegram_message() {
-# 如果传入了 TG_TOKEN 和 CHAT_ID，发送 Telegram 通知
-if [ -n "$TG_TOKEN" ] && [ -n "$CHAT_ID" ]; then
-local message="$1"
-# 替换空格为URL编码
-local encoded_message=$(echo "$message" | sed 's/ /%20/g' | sed 's/+/%2B/g')
-response=$(curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -d "chat_id=$CHAT_ID" -d "text=$encoded_message")
+    # 如果传入了 TG_TOKEN 和 CHAT_ID，发送 Telegram 通知
+    if [ -n "$TG_TOKEN" ] && [ -n "$CHAT_ID" ]; then
+        echo "-----------发送TG通知-----------------"
+	    local message="$1"
+	    response=$(curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -d "chat_id=$CHAT_ID" -d "text=$message")
 
-# 检查响应
-if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
-echo "::info::Telegram消息发送成功: $message"
-else
-echo "::error::Telegram消息发送失败: $response"
-fi
-fi
+	    # 检查响应
+	    if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
+	        echo "::info::Telegram消息发送成功: $message"
+	    else
+	        echo "::error::Telegram消息发送失败: $response"
+	    fi
+    fi
 }
 
 # 检查是否传入了参数
 if [ "$#" -lt 1 ]; then
-echo "用法: $0 <accounts.json> [<TG_TOKEN> <CHAT_ID>]"
-echo "请确保将账户信息以 JSON 格式保存在指定的文件中。"
-exit 1
+    echo "用法: $0 <accounts.json> [<TG_TOKEN> <CHAT_ID>]"
+    echo "请确保将账户信息以 JSON 格式保存在指定的文件中。"
+    exit 1
 fi
 
 accounts_file="$1"
@@ -46,50 +45,59 @@ TG_TOKEN="$2"
 CHAT_ID="$3"
 
 echo "Loading accounts from $accounts_file..."
-accounts_count=$(jq '. | length' "$accounts_file")
-echo "::info::总共有 $accounts_count 个用户"
+accounts=$(jq -c '.[]' "$accounts_file")
+total_accounts=$(echo "$accounts" | wc -l)  
+echo "::info::总共有 $total_accounts 个用户"
 echo "----------------------------"
 
-if [ "$accounts_count" -eq 0 ]; then
-echo "::error::没有找到用户账户，请检查 SSH_ACCOUNTS 变量的格式"
-send_telegram_message "🔴serv00激活失败: 没有找到用户账户，请检查账户文件"
-exit 1
+if [ "$total_accounts" -eq 0 ]; then
+    echo "::error::没有找到用户账户，请检查 SSH_ACCOUNTS 变量的格式"
+    send_telegram_message "🔴serv00激活失败: 没有找到用户账户，请检查 SSH_ACCOUNTS 变量的格式"
+    exit 1
 fi
 
-# 初始化计数器
-batch_success=0
-batch_fail=0
-current_count=0
+success_count=0
+failure_count=0
+counter=0
 
-jq -c '.[]' "$accounts_file" | while read -r account; do
+for account in $accounts; do
+    # 打印整个账户信息
+    #echo "Account: $account"
+    
     ip=$(echo "$account" | jq -r '.ip')
     username=$(echo "$account" | jq -r '.username')
     password=$(echo "$account" | jq -r '.password')
 
+    # 调试信息
+    #echo "Debug: ip=$ip, username=$username, password=$password"
+
+    if [ -z "$username" ] || [ -z "$ip" ]; then
+        echo "::error::发现空的用户名或 IP，无法连接"
+	send_telegram_message "🔴serv00激活失败:发现空的用户名或 IP，无法连接，请检查 SSH_ACCOUNTS 变量的格式"
+        failure_count=$((failure_count + 1))
+        continue
+    fi
+
     echo "正在连接 $username@$ip ..."
     if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=2 -tt "$username@$ip" "sleep 3; exit"; then
         echo "成功激活 $username@$ip"
-        ((batch_success++))
+	send_telegram_message "🟢serv00成功激活:$username@$ip"
+        success_count=$((success_count + 1))
     else
         echo "连接激活 $username@$ip 失败"
-        ((batch_fail++))
+	send_telegram_message "🔴serv00激活失败: $username@$ip"
+	failure_count=$((failure_count + 1))
     fi
-    ((current_count++))
+    echo "----------------------------"
 
-    # 每处理10个账户发送一次汇总
-    if (( current_count % 10 == 0 )); then
-        message="🟢激活批次汇总（${current_count}次）\n成功：${batch_success}次\n失败：${batch_fail}次"
-        send_telegram_message "$message"
-        # 重置计数器
-        batch_success=0
-        batch_fail=0
+    counter=$((counter + 1))
+    if [ $counter -eq 10 ]; then
+        send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+        counter=0
     fi
 done
 
-# 发送最后未满10次的汇总
-if (( current_count % 10 != 0 )); then
-    message="🟢最后批次汇总（${current_count}次）\n成功：${batch_success}次\n失败：${batch_fail}次"
-    send_telegram_message "$message"
+# 发送最后的汇总消息（如果剩余的账户不足10个）
+if [ $counter -ne 0 ]; then
+    send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
 fi
-
-echo "所有账户处理完成，最终汇总已发送"
