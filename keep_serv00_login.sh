@@ -95,8 +95,7 @@ for account in $accounts; do
 
     counter=$((counter + 1))
     if [ $counter -eq 10 ]; then
-        send_telegram_message "$message"
-        send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+        send_telegram_message "$message""📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
         counter=0
         message=""
     fi
