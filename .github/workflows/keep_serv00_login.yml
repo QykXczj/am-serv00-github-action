@@ -9,6 +9,7 @@ env:
   SSH_ACCOUNTS: ${{ secrets.SSH_ACCOUNTS }}
   TG_TOKEN: ${{ secrets.TG_TOKEN }}
   CHAT_ID: ${{ secrets.CHAT_ID }}
+  VX_BOT_KEY: ${{ secrets.VX_BOT_KEY }}
   
 jobs:
   keep_serv00_login:
