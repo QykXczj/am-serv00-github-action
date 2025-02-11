@@ -35,18 +35,31 @@ send_telegram_message() {
 
 # 发送 企业微信机器人 消息的函数
 send_vxbot_message() {
-    # 如果传入了 VX_BOT_KEY ，发送 企业微信机器人 通知
-    if [ -n "$VX_BOT_KEY" ] ; then
+    if [ -n "$VX_BOT_KEY" ]; then
         echo "-----------发送企业微信机器人通知-----------------"
-	    local message="$1"
-	    response=$(curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$VX_BOT_KEY" -d "msgtype=text" -d "text=$message")
+        local message="$1"
+        
+        # 构建符合企业微信要求的JSON格式
+        local json_data=$(printf '{
+            "msgtype": "text",
+            "text": {
+                "content": "%s"
+            }
+        }' "$(echo "$message" | sed 's/"/\\"/g')")
 
-	    # 检查响应
-	    if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
-	        echo "::info::企业微信机器人消息发送成功: $message"
-	    else
-	        echo "::error::企业微信机器人消息发送失败: $response"
-	    fi
+        # 发送请求
+        response=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$VX_BOT_KEY" \
+            -d "$json_data")
+
+        # 解析响应
+        local errcode=$(echo "$response" | jq -r '.errcode')
+        if [[ "$errcode" == "0" ]]; then
+            echo "::info::企业微信消息发送成功: $message"
+        else
+            echo "::error::企业微信消息发送失败: $response"
+        fi
     fi
 }
 
