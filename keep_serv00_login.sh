@@ -83,11 +83,11 @@ for account in $accounts; do
     if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=2 -tt "$username@$ip" "sleep 3; exit"; then
         echo "成功激活 $username@$ip"
 	#send_telegram_message "🟢serv00成功激活:$username@$ip"
-	      message+="🟢成功激活:用户名$username""主机名$ip"
+	      message+="🟢成功激活~v~ 用户名: $username""主机名: $ip"
         success_count=$((success_count + 1))
     else
         echo "连接激活 $username@$ip 失败"
-        message+="🔴激活失败:用户名$username""主机名$ip$"
+        message+="🔴激活失败~_~ 用户名: $username""主机名: $ip$"
 	#send_telegram_message "🔴serv00激活失败: $username@$ip"
 	failure_count=$((failure_count + 1))
     fi
