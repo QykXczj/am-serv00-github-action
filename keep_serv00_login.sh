@@ -56,64 +56,53 @@ if [ "$total_accounts" -eq 0 ]; then
     exit 1
 fi
 
-success_messages=()
-failure_messages=()
+success_count=0
+failure_count=0
 counter=0
+message=""
 
 for account in $accounts; do
+    # 打印整个账户信息
+    #echo "Account: $account"
+    
     ip=$(echo "$account" | jq -r '.ip')
     username=$(echo "$account" | jq -r '.username')
     password=$(echo "$account" | jq -r '.password')
 
+    # 调试信息
+    #echo "Debug: ip=$ip, username=$username, password=$password"
+
     if [ -z "$username" ] || [ -z "$ip" ]; then
         echo "::error::发现空的用户名或 IP，无法连接"
-        failure_messages+=("🔴serv00激活失败: 发现空的用户名或 IP，无法连接，请检查 SSH_ACCOUNTS 变量的格式 - $username@$ip")
+	send_telegram_message "🔴serv00激活失败:发现空的用户名或 IP，无法连接，请检查 SSH_ACCOUNTS 变量的格式"
+        failure_count=$((failure_count + 1))
         continue
     fi
 
-    echo "正在连接 用户名$username&主机名$ip ..."
+    echo "正在连接 $username@$ip ..."
     if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=2 -tt "$username@$ip" "sleep 3; exit"; then
-        echo "成功激活 用户名$username&主机名$ip"
-        success_messages+=("🟢serv00成功激活: 用户名$username&主机名$ip")
+        echo "成功激活 $username@$ip"
+	#send_telegram_message "🟢serv00成功激活:$username@$ip"
+	      message="🟢成功激活:用户名$username&主机名$ip\n"
+        success_count=$((success_count + 1))
     else
-        echo "连接激活 用户名$username&主机名$ip 失败"
-        failure_messages+=("🔴serv00激活失败: 用户名$username&主机名$ip")
+        echo "连接激活 $username@$ip 失败"
+        message="🔴激活失败:用户名$username&主机名$ip\n"
+	#send_telegram_message "🔴serv00激活失败: $username@$ip"
+	failure_count=$((failure_count + 1))
     fi
     echo "----------------------------"
 
     counter=$((counter + 1))
     if [ $counter -eq 10 ]; then
-        send_summary_messages
+        send_telegram_message message
+        send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
         counter=0
+        message=""
     fi
 done
 
-# 发送最终汇总消息
+# 发送最后的汇总消息（如果剩余的账户不足10个）
 if [ $counter -ne 0 ]; then
-    send_summary_messages
+    send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
 fi
-
-# 发送汇总消息的函数
-send_summary_messages() {
-    local summary_message="📊汇总消息:\n"
-
-    if [ ${#success_messages[@]} -gt 0 ]; then
-        summary_message+="成功:\n"
-        for msg in "${success_messages[@]}"; do
-            summary_message+="$msg\n"
-        done
-    fi
-
-    if [ ${#failure_messages[@]} -gt 0 ]; then
-        summary_message+="失败:\n"
-        for msg in "${failure_messages[@]}"; do
-            summary_message+="$msg\n"
-        done
-    fi
-
-    send_telegram_message "$summary_message"
-
-    # 清空消息数组
-    success_messages=()
-    failure_messages=()
-}
