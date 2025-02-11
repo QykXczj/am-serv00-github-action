@@ -26,6 +26,6 @@ jobs:
           echo "$SSH_ACCOUNTS" > accounts.json
           echo "accounts.json 内容："
           chmod +x ./keep_serv00_login.sh 
-          ./keep_serv00_login.sh accounts.json "$TG_TOKEN" "$CHAT_ID"
+          ./keep_serv00_login.sh accounts.json "$TG_TOKEN" "$CHAT_ID" "$VX_BOT_KEY"
         env:
           PATH: /usr/bin:$PATH
