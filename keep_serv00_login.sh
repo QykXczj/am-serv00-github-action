@@ -46,7 +46,7 @@ CHAT_ID="$3"
 
 echo "Loading accounts from $accounts_file..."
 accounts=$(jq -c '.[]' "$accounts_file")
-total_accounts=$(echo "$accounts" | wc -l)  
+total_accounts=$(echo "$accounts" | wc -l)
 echo "::info::总共有 $total_accounts 个用户"
 echo "----------------------------"
 
@@ -64,7 +64,7 @@ message=""
 for account in $accounts; do
     # 打印整个账户信息
     #echo "Account: $account"
-    
+
     ip=$(echo "$account" | jq -r '.ip')
     username=$(echo "$account" | jq -r '.username')
     password=$(echo "$account" | jq -r '.password')
@@ -95,7 +95,7 @@ for account in $accounts; do
 
     counter=$((counter + 1))
     if [ $counter -eq 10 ]; then
-        send_telegram_message message
+        send_telegram_message "$message"
         send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
         counter=0
         message=""
