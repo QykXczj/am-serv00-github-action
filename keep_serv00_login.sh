@@ -33,6 +33,23 @@ send_telegram_message() {
     fi
 }
 
+# 发送 企业微信机器人 消息的函数
+send_vxbot_message() {
+    # 如果传入了 VX_BOT_KEY ，发送 企业微信机器人 通知
+    if [ -n "$VX_BOT_KEY" ] ; then
+        echo "-----------发送企业微信机器人通知-----------------"
+	    local message="$1"
+	    response=$(curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$VX_BOT_KEY" -d "text=$message")
+
+	    # 检查响应
+	    if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
+	        echo "::info::企业微信机器人消息发送成功: $message"
+	    else
+	        echo "::error::企业微信机器人消息发送失败: $response"
+	    fi
+    fi
+}
+
 # 检查是否传入了参数
 if [ "$#" -lt 1 ]; then
     echo "用法: $0 <accounts.json> [<TG_TOKEN> <CHAT_ID>]"
@@ -75,6 +92,7 @@ for account in $accounts; do
     if [ -z "$username" ] || [ -z "$ip" ]; then
         echo "::error::发现空的用户名或 IP，无法连接"
 	send_telegram_message "🔴serv00激活失败:发现空的用户名或 IP，无法连接，请检查 SSH_ACCOUNTS 变量的格式"
+	send_vxbot_message "🔴serv00激活失败:发现空的用户名或 IP，无法连接，请检查 SSH_ACCOUNTS 变量的格式"
         failure_count=$((failure_count + 1))
         continue
     fi
@@ -96,6 +114,7 @@ for account in $accounts; do
     counter=$((counter + 1))
     if [ $counter -eq 10 ]; then
         send_telegram_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+        send_vxbot_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
         counter=0
         message=""
     fi
@@ -103,5 +122,6 @@ done
 
 # 发送最后的汇总消息（如果剩余的账户不足10个）
 if [ $counter -ne 0 ]; then
-    send_telegram_message "📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+    send_telegram_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+    send_vxbot_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
 fi
