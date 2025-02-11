@@ -39,7 +39,7 @@ send_vxbot_message() {
     if [ -n "$VX_BOT_KEY" ] ; then
         echo "-----------发送企业微信机器人通知-----------------"
 	    local message="$1"
-	    response=$(curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?access_token=$VX_BOT_KEY" -d "text=$message")
+	    response=$(curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$VX_BOT_KEY" -d "msgtype=text" -d "text=$message")
 
 	    # 检查响应
 	    if [[ $(echo "$response" | jq -r '.ok') == "true" ]]; then
