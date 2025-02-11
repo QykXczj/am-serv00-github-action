@@ -38,7 +38,7 @@ send_vxbot_message() {
     if [ -n "$VX_BOT_KEY" ]; then
         echo "-----------发送企业微信机器人通知-----------------"
         local message="$1"
-        
+
         # 构建符合企业微信要求的JSON格式
         local json_data=$(printf '{
             "msgtype": "text",
@@ -89,7 +89,8 @@ fi
 success_count=0
 failure_count=0
 counter=0
-message=""
+success_message=""
+failure_message=""
 
 for account in $accounts; do
     # 打印整个账户信息
@@ -113,28 +114,34 @@ for account in $accounts; do
     echo "正在连接 $username@$ip ..."
     if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=2 -tt "$username@$ip" "sleep 3; exit"; then
         echo "成功激活 $username@$ip"
-	#send_telegram_message "🟢serv00成功激活:$username@$ip"
-	      message+="🟢成功激活~v~ 用户名: $username"" 主机名: $ip"
+	      #send_telegram_message "🟢serv00成功激活:$username@$ip"
+	      success_message+="🟢成功激活~v~ 用户名: $username"" 主机名: $ip"
         success_count=$((success_count + 1))
     else
         echo "连接激活 $username@$ip 失败"
-        message+="🔴激活失败~_~ 用户名: $username"" 主机名: $ip$"
-	#send_telegram_message "🔴serv00激活失败: $username@$ip"
-	failure_count=$((failure_count + 1))
+        failure_message+="🔴激活失败~_~ 用户名: $username"" 主机名: $ip$"
+	      #send_telegram_message "🔴serv00激活失败: $username@$ip"
+	      failure_count=$((failure_count + 1))
     fi
     echo "----------------------------"
 
     counter=$((counter + 1))
     if [ $counter -eq 10 ]; then
-        send_telegram_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
-        send_vxbot_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+        send_telegram_message "$success_message""$failure_message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+        #send_vxbot_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
         counter=0
-        message=""
+        success_message=""
+        failure_message=""
     fi
 done
 
 # 发送最后的汇总消息（如果剩余的账户不足10个）
 if [ $counter -ne 0 ]; then
-    send_telegram_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
-    send_vxbot_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+    send_telegram_message "$success_message""$failure_message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+    #send_vxbot_message "$message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
+fi
+
+# 如果出现激活失败的情况再发送企业微信机器人通知
+if [ $failure_count -gt 0 ]; then
+    send_vxbot_message "$failure_message"" 📊汇总信息: 成功 $success_count 次, 失败 $failure_count 次"
 fi
